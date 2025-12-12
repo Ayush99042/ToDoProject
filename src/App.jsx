@@ -2,11 +2,11 @@ import React, { useState, useMemo } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
-import Home from "./Home.jsx";
-import Todo from "./Todo.jsx";
-import Nav from "./Nav.jsx";
-import Create from "./Create.jsx";
-import Update from "./Update.jsx";
+import Home from "./pages/Home.jsx";
+import Todo from "./pages/Todo.jsx";
+import Nav from "./pages/Nav.jsx";
+import Create from "./pages/Create.jsx";
+import Update from "./pages/Update.jsx";
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
