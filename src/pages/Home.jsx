@@ -1,4 +1,12 @@
+// CRUD with Checkbox Completion
+
 import React, { useEffect, useState } from "react";
+import Checkbox from "@mui/material/Checkbox";
+import IconButton from "@mui/material/IconButton";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DoneIcon from "@mui/icons-material/Done";
+
 import {
   Table,
   TableBody,
@@ -9,112 +17,267 @@ import {
   Paper,
   Button,
   Typography,
-  Box
+  Box,
+  TextField,
+  MenuItem,
+  Stack,
 } from "@mui/material";
 
-import { Link } from "react-router-dom";
 import axios from "axios";
 
 const Home = () => {
+  
   const [data, setData] = useState([]);
+  const [filterPriority, setFilterPriority] = useState(""); // stores selected priority for filtering
 
-  // DELETE function
-  const handleDelete = (id) => {
-    if (confirm("Are you sure you want to delete this?")) {
-      alert(`Todo with ID ${id} deleted`);
-      // later: axios.delete(...)
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    priority: "",
+  });
+
+  const [editId, setEditId] = useState(null);
+
+  // Fetch todos
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  const fetchTodos = () => {
+    axios
+      .get("http://192.168.1.35:4000/api/todos/")
+      .then((res) => setData(res.data))
+      .catch((err) => console.error("Error fetching data:", err));
+  };
+
+  // Form change
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  // Add / Update
+  const handleSubmit = () => {
+    if (!form.title) {
+      alert("Title is required");
+      return;
+    }
+    if (!form.description) {
+      alert("description is required");
+      return;
+    }
+    if (!form.priority) {
+      alert("priority is required");
+      return;
+    }
+
+    if (editId) {
+      axios
+        .put(`http://192.168.1.35:4000/api/todos/${editId}`, form)
+        .then((res) => {
+          setData(data.map((todo) => (todo.id === editId ? res.data : todo)));
+          resetForm();
+        })
+        .catch((err) => console.error("Update error:", err));
+    } else {
+      axios
+        .post("http://192.168.1.35:4000/api/todos/", form)
+        .then((res) => {
+          setData([...data, res.data]);
+          resetForm();
+        })
+        .catch((err) => console.error("Add error:", err));
     }
   };
 
-  // Fetch Data
-  useEffect(() => {
+  // Edit
+  const handleEdit = (todo) => {
+    setEditId(todo.id);
+    setForm({
+      title: todo.title,
+      description: todo.description,
+      priority: todo.priority,
+    });
+  };
+
+  // Delete
+  const handleDelete = (id) => {
+    if (!window.confirm("Delete this todo?")) return;
+
     axios
-      .get("http://localhost:3000/")
-      .then((res) => setData(res.data))
-      .catch((err) => console.log(err));
-  }, []);
+      .delete("http://192.168.1.35:4000/api/todos/" + id)
+      .then(() => {
+        setData(data.filter((todo) => todo.id !== id));
+      })
+      .catch((err) => console.error("Delete error:", err));
+  };
+
+  // Checkbox toggle
+  const handleCheckboxChange = (todo) => {
+    axios
+      .put(`http://192.168.1.35:4000/api/todos/${todo.id}`, {
+        ...todo,
+        isCompleted: !todo.isCompleted,
+      })
+      .then((res) => {
+        setData(data.map((item) => (item.id === todo.id ? res.data : item)));
+      })
+      .catch((err) => console.error("Completion update error:", err));
+
+    fetchTodos();
+  };
+
+  const resetForm = () => {
+    setForm({ title: "", description: "", priority: "" });
+    setEditId(null);
+  };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" align="center" sx={{ mb: 3 }}>
-        ToDo List
-      </Typography>
+      {/* ---------- FORM ---------- */}
+      <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+        <Paper sx={{ p: 2, width: "50%", minWidth: "400px" }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            {editId ? "Edit Todo" : "Add Todo"}
+          </Typography>
 
-      {/* ADD BUTTON */}
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-        <Button variant="contained" component={Link} to="/create">
-          Add +
-        </Button>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              label="Title"
+              name="title"
+              size="small"
+              required
+              sx={{ width: 150 }}
+              value={form.title}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Description"
+              name="description"
+              size="small"
+              sx={{ width: 250 }}
+              value={form.description}
+              onChange={handleChange}
+            />
+
+            <TextField
+              select
+              label="Priority"
+              name="priority"
+              size="small"
+              sx={{ width: 120 }}
+              value={form.priority}
+              onChange={handleChange}
+            >
+              <MenuItem value="">Select</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="normal">Normal</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="urgent">Urgent</MenuItem>
+            </TextField>
+
+            <Button variant="contained" size="small" onClick={handleSubmit}>
+              {editId ? "Update" : "Add"}
+            </Button>
+          </Stack>
+        </Paper>
       </Box>
 
-      {/* TABLE */}
-      <TableContainer component={Paper}>
-        <Table>
-          {/* TABLE HEADER */}
-          <TableHead>
-            <TableRow>
-              <TableCell><b>Title</b></TableCell>
-              <TableCell><b>Description</b></TableCell>
-              <TableCell><b>Priority</b></TableCell>
-              <TableCell><b>isCompleted</b></TableCell>
-              <TableCell><b>order_index</b></TableCell>
-              <TableCell><b>CreatedAt</b></TableCell>
-              <TableCell><b>UpdatedAt</b></TableCell>
-              <TableCell><b>todos_priority_check</b></TableCell>
-              <TableCell><b>Actions</b></TableCell>
-            </TableRow>
-          </TableHead>
-
-          {/* TABLE BODY */}
-          <TableBody>
-            {data.length > 0 ? (
-              data.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.title}</TableCell>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell>{item.priority}</TableCell>
-                  <TableCell>{item.isCompleted ? "Yes" : "No"}</TableCell>
-                  <TableCell>{item.order_index}</TableCell>
-                  <TableCell>{item.createdAt}</TableCell>
-                  <TableCell>{item.updatedAt}</TableCell>
-                  <TableCell>{item.todos_priority_check}</TableCell>
-
-                  <TableCell>
-
-                    {/* EDIT BUTTON */}
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      component={Link}
-                      to={`/update/${item.id}`}
-                      sx={{ mr: 1 }}
-                    >
-                      Edit
-                    </Button>
-
-                    {/* DELETE BUTTON */}
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={() => handleDelete(item.id)}
-                    >
-                      Delete
-                    </Button>
-
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
+      {/* ---------- TABLE ---------- */}
+      <Box sx={{ display: "flex", justifyContent: "center"}}>
+        <TableContainer component={Paper} sx={{ width: "50%"}}>
+          <Table >
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={9} align="center">
-                  Loading...
+                <TableCell colSpan={4}></TableCell>{" "}
+                {/* empty cells to push filter right */}
+                <TableCell align="right">
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    justifyContent="flex-end"
+                    alignItems="center"
+                  >
+                    <Typography>Filter:</Typography>
+                    <TextField
+                      select
+                      size="small"
+                      value={filterPriority}
+                      onChange={(e) => setFilterPriority(e.target.value)}
+                      sx={{ width: 120 }}
+                    >
+                      <MenuItem value="">All</MenuItem>
+                      <MenuItem value="low">Low</MenuItem>
+                      <MenuItem value="normal">Normal</MenuItem>
+                      <MenuItem value="high">High</MenuItem>
+                      <MenuItem value="urgent">Urgent</MenuItem>
+                    </TextField>
+                  </Stack>
                 </TableCell>
               </TableRow>
-            )}
-          </TableBody>
+            </TableHead>
 
-        </Table>
-      </TableContainer>
+            <TableBody>
+              {data
+                .filter((d) => !filterPriority || d.priority === filterPriority) // filter here
+                .map((d, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Checkbox
+                        checked={d.isCompleted}
+                        onChange={() => handleCheckboxChange(d)}
+                      />
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        textDecoration: d.isCompleted ? "line-through" : "none",
+                      }}
+                    >
+                      {d.title}
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        textDecoration: d.isCompleted ? "line-through" : "none",
+                      }}
+                    >
+                      {d.description}
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        textDecoration: d.isCompleted ? "line-through" : "none",
+                      }}
+                    >
+                      {d.priority}
+                    </TableCell>
+
+                    <TableCell>
+                      <IconButton
+                        color="primary"
+                        disabled={d.isCompleted}
+                        onClick={() => handleEdit(d)}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+
+                      {d.isCompleted && (
+                        <DoneIcon fontSize="small" color="success" />
+                      )}
+
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDelete(d.id)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
     </Box>
   );
 };
